@@ -1,0 +1,64 @@
+version: '2.9'
+
+services:
+
+  todo-db-server:
+    image: postgres:latest
+    container_name: todo-db-server
+    healthcheck:
+      test: pg_isready
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - todo-db-server-volume:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - '5400:5432'
+
+  todo-db-admin:
+    image: dpage/pgadmin4
+    container_name: todo-db-admin
+    volumes:
+      - todo-db-admin-volume:/var/lib/pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${DB_ADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${DB_ADMIN_PASSWORD}
+    ports:
+      - '5401:80'
+    depends_on:
+      todo-db-server:
+        condition: service_healthy
+
+  todo-api:
+    build:
+      context: .
+      target: ${ENV:-dev}
+    container_name: todo-api
+    volumes:
+      - ./:/app
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_JDBC=${DB_JDBC}
+    ports:
+      - '5402:8000'
+    depends_on:
+      todo-db-server:
+        condition: service_healthy
+
+volumes:
+
+  todo-db-server-volume:
+    driver: local
+
+  todo-db-admin-volume:
+    driver: local
+
+networks:
+
+  default:
+    name: todo-net
